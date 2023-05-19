@@ -1,108 +1,120 @@
-    #include "mainwindow.h"
+#include "mainwindow.h"
 #include "ui_mainwindow.h"
+QString filePath = "";
+
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+
     this->setCentralWidget(ui->textEdit); // привязка поля текста к размерам окна
-    //QString fileName = ui->textEdit->windowTitle();
-    //QWidget::setWindowTitle(fileName);
-    // QString CurrentFile (fileName) = "";
-    QWidget::setWindowTitle("*Безымянный - Блокнот");
-
-
-
-
-
+    QWidget::setWindowTitle("Безымянный - Блокнот");
 
 }
+
 
 MainWindow::~MainWindow()
 {
     delete ui;
 }
 
+
 void MainWindow::on_Menu_Open_triggered() // меню ОТКРЫТЬ
 {
+    is_modified = false;
+    QString filePath = QFileDialog::getOpenFileName(this, tr("Открыть файл"), "", tr("Text files (*.txt)"));
 
-    //QString fileName; // строка для имени файла (file_path)
-
-    // вариант 1 Winfows style - экранируем слеши
-    fileName = QFileDialog::getOpenFileName(this, tr("Открыть файл"),"", tr("Text files (*.txt)"));
-
-    // вариант 2 Linux style - обратные слеши
-    //fileName=QFileDialog::getOpenFileName(this, tr("Открыть файл"),"C:/Users/student/Documents", tr("Text files (*.txt)"));
-
-    if (fileName.isEmpty()) // Файл не выбран
+    if (!filePath.isEmpty())
     {
-        QMessageBox::information(this, "Ошибка", "Файл не выбран");
+        QFile file(filePath);
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            QTextStream in(&file);
+            in.setCodec("UTF-8");
+            ui->textEdit->setText(in.readAll());
+            file.close();
+            QString fileName = QFileInfo(filePath).fileName();
+            setWindowTitle(fileName);
 
+        }
+        else {
+            QMessageBox::critical(this, "Ошибка", "Невозможно открыть файл", QMessageBox::Ok);
+        }
     }
-    else
-    {
-        ui->textEdit->append(fileName);
-        ui->textEdit->clear(); //очистка поля редактора
-        QFile file; // класс файлов
-        file.setFileName(fileName); // связываем имя с Файлом
-
-        file.open(QIODevice::ReadOnly); // открываем только на чтение
-
-        QByteArray ba; // массив для передачи данных
-        ba.clear();
-        long long int size; // размер файла
-
-        size = file.size(); // получаем размер файла
-
-        ba = file.read(size); // чтение из файла
-
-        ui->textEdit->append(QString(ba)); // копируем в поле редактора через QString
-
-        QWidget::setWindowTitle(fileName);
-
-        file.close(); // закрываем файл
+    else {
+        QMessageBox::critical(this, "Ошибка", "Файл не выбран", QMessageBox::Ok);
     }
+
 }
 
 void MainWindow::on_Menu_Save_As_triggered() // меню СОХРАНИТЬ КАК
 {
 
-    //QString fileName; // строка для имени файла
+//    QString fileName; // строка для имени файла
 
-    // вариант 1 Winfows style - экранируем слеши
-    fileName = QFileDialog::getSaveFileName(this, tr("Сохранить как"),"Новый текстовый документ - Блокнот", tr("Text files (*.txt)"));
+//    // вариант 1 Winfows style - экранируем слеши
+//    fileName = QFileDialog::getSaveFileName(this, tr("Сохранить как"),"Новый текстовый документ - Блокнот", tr("Text files (*.txt)"));
 
-    if (fileName.isEmpty()) // Файл не выбран
+//    if (fileName.isEmpty()) // Файл не выбран
+//    {
+//        QMessageBox::information(this, "Внимание!", "Файл не выбран");
+
+
+//    }
+//    else
+//    {
+//        QFile file; // класс файлов
+//        file.setFileName(fileName); // связываем имя с файлом
+
+//        file.open(QIODevice::WriteOnly); // открываем имя с файлом (WriteOnly)
+
+//        file.write(ui->textEdit->toPlainText().toUtf8( )); // запись в файл через цепочку преобразований
+
+//        QWidget::setWindowTitle(fileName);
+
+//        file.close(); // закрываем файл
+//    }
+
+    QString fileName = QFileDialog::getSaveFileName(this, "Cохранить файл", ".", tr ("Text files (*.txt)"));
+    if (!fileName.isEmpty())
     {
-        QMessageBox::information(this, "Внимание!", "Файл не выбран");
-
-
-    }
-    else
-    {
-        QFile file; // класс файлов
-        file.setFileName(fileName); // связываем имя с файлом
-
-        file.open(QIODevice::WriteOnly); // открываем имя с файлом
-
-        file.write(ui->textEdit->toPlainText().toUtf8( )); // запись в файл через цепочку преобразований
-
-        QWidget::setWindowTitle(fileName);
-
-        file.close(); // закрываем файл
+        QFile file(fileName);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text))
+        {
+            QTextStream out(&file);
+            out << ui->textEdit->toPlainText().toUtf8();
+            file.close();
+            setWindowTitle(QFileInfo(fileName).fileName() + "- Блокнот");
+            filePath = fileName;
+            is_modified = false;
+        }
+        else
+        {
+            QMessageBox::critical(this, "Ошибка", "Невозможно сохранить файл", QMessageBox::Ok);
+        }
     }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) //ОБРАБОТЧИК ЗАКРЫТИЯ ФОРМЫ
 {
-    if (QMessageBox::question(this, "Выход", "Точно выходим?", QMessageBox::Yes |QMessageBox::No, QMessageBox::Yes) == QMessageBox::Yes)
-    {//YES
-        event->accept(); // принимаем сигнал
+    if (is_modified)
+    {
+        if (QMessageBox::question(this, "Блокнот", "Файл был изменен, Вы хотите сохранить изменения?", QMessageBox::Yes |QMessageBox::No, QMessageBox::Yes) == QMessageBox::Yes)
+        {//YES
+            on_Menu_Save_triggered();
+            event->accept(); // принимаем сигнал
+        }
+        else
+        {
+            event->accept(); // игнорируем сигнал
+        }
     }
     else
     {
-        event->ignore(); // игнорируем сигнал
+        event->accept();
     }
 
 }
@@ -117,29 +129,64 @@ void MainWindow::closeEvent(QCloseEvent *event) //ОБРАБОТЧИК ЗАКР�
 
 void MainWindow::on_Menu_Create_triggered() // МЕНЮ СОЗДАТЬ
 {
-    QString fileName = "";
-    fileName.clear();
-    ui->textEdit->setText(QString());
-    QWidget::setWindowTitle("*Безымянный - блокнот");
+    if (is_modified)
+    {
+        QMessageBox::StandardButton response = QMessageBox::warning(this, "Сохранить изменения?", "Файл был изменен. Сохранить изменения перед созданием нового файла?", QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+        if (response == QMessageBox::Save)
+        {
+            on_Menu_Save_As_triggered();
+        }
+        else if (response == QMessageBox::Discard)
+        {
+            is_saved = false;
+        }
+        else
+        {
+            return;
+        }
+    }
+    ui->textEdit->clear();
+    filePath.clear();
+    is_saved = false;
+    is_modified = false;
+
 }
 
 
 
-void MainWindow::on_Menu_Save_triggered() // МЕНЮ СОХРАНИТЬ ???????????????????????????????????????????????????????????????
+void MainWindow::on_Menu_Save_triggered() // МЕНЮ СОХРАНИТЬ
 {
 
+//    QString fileName;
 
+//    QFile file; // класс файлов
+//    file.setFileName(fileName); // связываем имя с файлом
 
-    QFile file; // класс файлов
-    file.setFileName(fileName); // связываем имя с файлом
+//    file.open(QIODevice::WriteOnly); // открываем имя с файлом
 
-    file.open(QIODevice::WriteOnly); // открываем имя с файлом
+//    file.write(ui->textEdit->toPlainText().toUtf8( )); // запись в файл через цепочку преобразований
 
-    file.write(ui->textEdit->toPlainText().toUtf8( )); // запись в файл через цепочку преобразований
+//    file.close(); // закрываем файл
 
-    file.close(); // закрываем файл
-
-
+    //если файл еще не был сохранен, то вызываем диалоговое окно "Сохранить как"
+    if (filePath.isEmpty())
+    {
+        on_Menu_Save_As_triggered();
+        return;
+    }
+    QFile file(filePath);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        QTextStream out(&file);
+        out << ui->textEdit->toPlainText().toUtf8();
+        file.close();
+        setWindowTitle(QFileInfo(filePath).fileName() + "- Блокнот");
+        is_modified = false;
+    }
+    else
+    {
+        QMessageBox::critical(this, "Ошибка", "Невозможно сохранить файл", QMessageBox::Ok);
+    }
 
 }
 
@@ -184,3 +231,24 @@ void MainWindow::on_Menu_About_triggered() // О ПРОГРАММЕ
     about_text += "(C) Notepad :  (R)\n";
     QMessageBox::about(this, "О Программе", about_text);
 }
+
+void MainWindow::on_textEdit_textChanged()
+{
+    if (!is_modified)
+    {
+        is_modified = true;
+        SetText(filePath.split("/").last());
+    }
+}
+
+void MainWindow::SetText(const QString &name)
+{
+    QString text;
+    if (is_modified)
+    {
+        text = "*";
+    }
+    text = text + name;
+    setWindowTitle(text + "- Блокнот");
+}
+

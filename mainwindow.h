@@ -8,6 +8,7 @@
 #include <QTextStream>
 #include <QFile>
 
+
 namespace Ui {
 class MainWindow;
 }
@@ -45,9 +46,19 @@ private slots:
 
     void on_Menu_About_triggered();
 
+    void on_textEdit_textChanged();
+
+
+    void SetText(const QString &name);
+
+
 private:
     Ui::MainWindow *ui;
-    QString fileName;
+
+    bool is_modified = false;
+    bool is_saved = false;
+
+
 };
 
 #endif // MAINWINDOW_H
