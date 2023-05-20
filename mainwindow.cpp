@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-QString filePath = "";
 
+using namespace std;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -11,7 +11,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     this->setCentralWidget(ui->textEdit); // привязка поля текста к размерам окна
-    QWidget::setWindowTitle("Безымянный - Блокнот");
+    setWindowTitle(fileName);
 
 }
 
@@ -21,176 +21,294 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+// основные действия (функции)
 
 void MainWindow::on_Menu_Open_triggered() // меню ОТКРЫТЬ
 {
-    is_modified = false;
-    QString filePath = QFileDialog::getOpenFileName(this, tr("Открыть файл"), "", tr("Text files (*.txt)"));
+    QString oldPath = this->windowTitle();
 
-    if (!filePath.isEmpty())
+    if (count(oldPath.begin(), oldPath.end(), "*")) // если были изменения
     {
-        QFile file(filePath);
-        if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+        QMessageBox quastion;
+        quastion.setWindowTitle("Блокнот");
+        quastion.setText("Вы хотите сохранить изменения в файле? \n" + fileName + "?");
+        quastion.setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+        quastion.setDefaultButton(QMessageBox::Save);
+        int res = quastion.exec();
+        switch (res)
         {
-            QTextStream in(&file);
-            in.setCodec("UTF-8");
-            ui->textEdit->setText(in.readAll());
-            file.close();
-            QString fileName = QFileInfo(filePath).fileName();
-            setWindowTitle(fileName);
+            case QMessageBox::Save:
+            {
+                if (fileExits(fileName))
+                    on_Menu_Save_triggered();
+                else
+                {/*
+                    QString fileSaveName(fileName);
 
-        }
-        else {
-            QMessageBox::critical(this, "Ошибка", "Невозможно открыть файл", QMessageBox::Ok);
+                    fileName = QFileDialog::getSaveFileName(this, tr("Сохранить файл"), "", tr("Текстовые файлы (*.txt)")); //сохранить файл
+
+                    if (!fileName.isEmpty()) //проверка на название файла
+                    {
+                        QFile file(fileName); //читаем название
+
+                        if (!file.open(QIODevice::WriteOnly)) //если ошибка в файле
+                        {
+                            QMessageBox::warning(this, tr("Ошибка"), tr("Не могу сохранить файл") + file.errorString());
+                            return;
+                        }
+                        else
+                        {//нет ошибок
+                            QString fileTitle = changedTitle(fileName);
+                            QTextStream stream(&file); //сохранение текста
+                            stream.setCodec("UTF-8"); //записываем в кодеке ЮТФ-8
+                            stream << ui->textEdit->toPlainText(); //записывание текста
+                            file.close(); //закрыли файл
+                            setWindowTitle(fileTitle); //поменяли название окна
+                        }
+                    }
+                    else //если нажали отмена
+                    {
+                        if (!count(oldPath.begin(), oldPath.end(), "*"))
+                        {
+                            fileName = fileSaveName;
+                            QString fileTitle = changedTitle(fileSaveName);
+                            setWindowTitle(fileTitle);
+                            // если пустой файл сохранить и нажать отмена то появится звезда - баг в функции СОХРАНИТЬ КАК
+                            // или если файл уже сохранен и опять нажать кнопку СОХРАНИТЬ КАК и отмена то опять появится звезда
+                        }
+                        else
+                        {
+                            fileName = fileSaveName;
+                            QString fileTitle = changedTitle(fileSaveName);
+                            setWindowTitle("*" + fileTitle);
+                        }
+                        break;
+                    }*/
+                    on_Menu_Save_As_triggered();
+                    break;
+
+                }
+
+
+                setWindowTitle(oldPath.remove("*"));
+                on_Menu_Open_triggered();
+                break;
+            }
+            case QMessageBox::Discard:
+            {
+                QString fileOpenName(fileName);
+                fileName = QFileDialog::getOpenFileName(this, tr("Открыть файл"), "", tr("Текстовые файлы (*.txt)")); //открытие файла
+                if (!fileName.isEmpty()) // проверка на название файла
+                {
+                    QFile file(fileName); //читаем файл название
+                    if(!file.open(QIODevice::ReadOnly)) // если ошибка в файле
+                    {
+                        QMessageBox::critical(this, tr("Ошибка!"), tr("Не могу открыть файл") + file.errorString());
+                        return;
+                    }
+                    QString fileTitle = changedTitle(fileName);
+                    QTextStream in(&file); // открытие файла
+                    in.setCodec("UTF-8"); // кодек
+                    text = in.readAll();
+                    ui->textEdit->setText(text); // чтение файла
+                    file.close(); // close
+                    setWindowTitle(fileTitle); // change file title
+                }
+                else
+                { // если нажали отмена
+                    if (!count(oldPath.begin(), oldPath.end(), "*"))
+                    {
+                        fileName = fileOpenName;
+                        QString fileTitle = changedTitle(fileOpenName);
+                        setWindowTitle(fileTitle);
+                        // если пустой файл сохранить и нажать отмена то появится звезда - баг в функции СОХРАНИТЬ КАК
+                        // или если файл уже сохранен и опять нажать кнопку СОХРАНИТЬ КАК и отмена то опять появится звезда
+                    }
+                    else
+                    {
+                        fileName = fileOpenName;
+                        QString fileTitle = changedTitle(fileOpenName);
+                        setWindowTitle("*" + fileTitle);
+                    }
+                }
+
+                break;
+            }
+            case QMessageBox::Cancel:
+            {
+                break;
+            }
         }
     }
-    else {
-        QMessageBox::critical(this, "Ошибка", "Файл не выбран", QMessageBox::Ok);
-    }
+    else
+    { // если никаких изменений в файле не было (или он сохранен)
+        QString fileOpenName(fileName);
 
+        fileName = QFileDialog::getOpenFileName(this, tr("Открыть файл"), "", tr("Текстовые файлы (*.txt)")); //открываем файл
+
+        if (!fileName.isEmpty()) //проверка на название файла
+        {
+            QFile file(fileName); //читаем название
+
+            if (!file.open(QIODevice::ReadOnly)) //если ошибка в файле
+            {
+                QMessageBox::warning(this, tr("Ошибка"), tr("Не могу открыть файл") + file.errorString());
+                return;
+            }
+            QString fileTitle = changedTitle(fileName);
+            QTextStream in(&file); //открытие файла
+            in.setCodec("UTF-8"); //смена кодека на ЮТФ-8 для чтения русских файлов
+            text = in.readAll();
+            ui->textEdit->setText(text); //чтение файла
+            file.close(); //закрыли файла
+            setWindowTitle(fileTitle); //смена названия файла
+        }
+        else //если нажали отмена
+        {
+            if (!count(oldPath.begin(), oldPath.end(), "*"))
+            {
+                fileName = fileOpenName;
+                QString fileTitle = changedTitle(fileOpenName);
+                setWindowTitle(fileTitle);
+                // если пустой файл сохранить и нажать отмена то появится звезда - баг в функции СОХРАНИТЬ КАК
+                // или если файл уже сохранен и опять нажать кнопку СОХРАНИТЬ КАК и отмена то опять появится звезда
+            }
+            else
+            {
+                fileName = fileOpenName;
+                QString fileTitle = changedTitle(fileOpenName);
+                setWindowTitle("*" + fileTitle);
+            }
+        }
+    }
 }
 
 void MainWindow::on_Menu_Save_As_triggered() // меню СОХРАНИТЬ КАК
 {
+    QString oldPath = this->windowTitle(); //старое название документа
+    QString fileSaveName(fileName);
 
-//    QString fileName; // строка для имени файла
+    fileName = QFileDialog::getSaveFileName(this, tr("Сохранить файл"), "", tr("Text files (*.txt)")); // окно сохранения файла
 
-//    // вариант 1 Winfows style - экранируем слеши
-//    fileName = QFileDialog::getSaveFileName(this, tr("Сохранить как"),"Новый текстовый документ - Блокнот", tr("Text files (*.txt)"));
-
-//    if (fileName.isEmpty()) // Файл не выбран
-//    {
-//        QMessageBox::information(this, "Внимание!", "Файл не выбран");
-
-
-//    }
-//    else
-//    {
-//        QFile file; // класс файлов
-//        file.setFileName(fileName); // связываем имя с файлом
-
-//        file.open(QIODevice::WriteOnly); // открываем имя с файлом (WriteOnly)
-
-//        file.write(ui->textEdit->toPlainText().toUtf8( )); // запись в файл через цепочку преобразований
-
-//        QWidget::setWindowTitle(fileName);
-
-//        file.close(); // закрываем файл
-//    }
-
-    QString fileName = QFileDialog::getSaveFileName(this, "Cохранить файл", ".", tr ("Text files (*.txt)"));
-    if (!fileName.isEmpty())
+    if (!fileName.isEmpty()) // проверка на название документв
     {
-        QFile file(fileName);
-        if (file.open(QIODevice::WriteOnly | QIODevice::Text))
+        QFile file(fileName.remove("*"));
+
+        if (!file.open(QIODevice::WriteOnly)) // если ошибка в файле
         {
-            QTextStream out(&file);
-            out << ui->textEdit->toPlainText().toUtf8();
+            QMessageBox::critical(this, tr("Ошибка"), tr("Не могу сохранить файл") + file.errorString());
+            return;
+        }
+        else // нет ошибок
+        {
+            QString fileTitle = changedTitle(fileName);
+            QTextStream in(&file); // сохранение текста
+            in.setCodec("UTF-8");
+            in << ui->textEdit->toPlainText(); // записывание текста
             file.close();
-            setWindowTitle(QFileInfo(fileName).fileName() + "- Блокнот");
-            filePath = fileName;
-            is_modified = false;
+            setWindowTitle(fileTitle); // меняем название окна
+        }
+    }
+    else // если пользоватеь нажимает кнопку отмена
+    {
+        if (!count(oldPath.begin(), oldPath.end(), "*"))
+        {
+            fileName = fileSaveName;
+            QString fileTitle = changedTitle(fileSaveName);
+            setWindowTitle(fileTitle);
+            // если пустой файл сохранить и нажать отмена то появится звезда - баг в функции СОХРАНИТЬ КАК
+            // или если файл уже сохранен и опять нажать кнопку СОХРАНИТЬ КАК и отмена то опять появится звезда
         }
         else
         {
-            QMessageBox::critical(this, "Ошибка", "Невозможно сохранить файл", QMessageBox::Ok);
-        }
-    }
-}
+            fileName = fileSaveName;
+            QString fileTitle = changedTitle(fileSaveName);
+            setWindowTitle("*" + fileTitle);
 
-void MainWindow::closeEvent(QCloseEvent *event) //ОБРАБОТЧИК ЗАКРЫТИЯ ФОРМЫ
-{
-    if (is_modified)
-    {
-        if (QMessageBox::question(this, "Блокнот", "Файл был изменен, Вы хотите сохранить изменения?", QMessageBox::Yes |QMessageBox::No, QMessageBox::Yes) == QMessageBox::Yes)
-        {//YES
-            on_Menu_Save_triggered();
-            event->accept(); // принимаем сигнал
         }
-        else
-        {
-            event->accept(); // игнорируем сигнал
-        }
-    }
-    else
-    {
-        event->accept();
     }
 
 }
-
-/*
-1) доделать остальные пункты меню (уже созданные 5 штук) как в стандартном Блокноте винды
-2) сделать привязку поля текста к размерам окна ^^^^^
-3) имя файла в заголовке окна
-4) работа с русскими буквами ^^^^^
-5) проверки на сохранении изменений (не забываем * у имени)
-*/
 
 void MainWindow::on_Menu_Create_triggered() // МЕНЮ СОЗДАТЬ
 {
-    if (is_modified)
+    QString oldPath = this->windowTitle(); //узнали название документа
+
+    if (count(oldPath.begin(), oldPath.end(), "*")) //поиск изменения в документе
     {
-        QMessageBox::StandardButton response = QMessageBox::warning(this, "Сохранить изменения?", "Файл был изменен. Сохранить изменения перед созданием нового файла?", QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
-        if (response == QMessageBox::Save)
-        {
-            on_Menu_Save_As_triggered();
-        }
-        else if (response == QMessageBox::Discard)
-        {
-            is_saved = false;
-        }
-        else
-        {
-            return;
+        QMessageBox msgBox;
+        msgBox.setWindowTitle("Блокнот");
+        msgBox.setText("Вы хотите сохранить изменения в файле \n" + fileName + "?");
+        msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+        msgBox.setDefaultButton(QMessageBox::Save);
+        int res = msgBox.exec();
+        switch (res)
+        {//какую кнопку нажал юзер
+            case QMessageBox::Save:
+            {// Нажата кнопка Save
+                if (fileExits(fileName)) //если файл существует в системе
+                    on_Menu_Save_triggered(); //сохраняем файл в системе
+                else //если не существует
+                {
+                    on_Menu_Save_As_triggered();
+                    break;
+                }
+                setWindowTitle(oldPath.remove("*"));
+                on_Menu_Create_triggered(); //вызываем создание еще раз
+                break;
+            }
+            case QMessageBox::Discard:
+            {// Нажата кнопка Discard
+                this->setWindowTitle(fileName.remove("*")); //убрать "*"
+                on_Menu_Create_triggered(); //вызываем создание еще раз
+                break;
+            }
+            case QMessageBox::Cancel:
+            {// Нажата кнопка Cancel
+                break;
+            }
         }
     }
-    ui->textEdit->clear();
-    filePath.clear();
-    is_saved = false;
-    is_modified = false;
-
+    else //если файл сохранен или он не изменялся
+    {
+        fileName = "Безымянный - Блокнот"; //изменили fileName
+        this->setWindowTitle(fileName); //меняем название документа
+        ui->textEdit->clear(); //делаем чистый документ
+    }
 }
-
-
 
 void MainWindow::on_Menu_Save_triggered() // МЕНЮ СОХРАНИТЬ
 {
+    QString oldPath = this->windowTitle(); // старое название
 
-//    QString fileName;
-
-//    QFile file; // класс файлов
-//    file.setFileName(fileName); // связываем имя с файлом
-
-//    file.open(QIODevice::WriteOnly); // открываем имя с файлом
-
-//    file.write(ui->textEdit->toPlainText().toUtf8( )); // запись в файл через цепочку преобразований
-
-//    file.close(); // закрываем файл
-
-    //если файл еще не был сохранен, то вызываем диалоговое окно "Сохранить как"
-    if (filePath.isEmpty())
+    if (fileExits(fileName)) // если документ есть в системе
     {
-        on_Menu_Save_As_triggered();
-        return;
-    }
-    QFile file(filePath);
-    if (file.open(QIODevice::WriteOnly | QIODevice::Text))
-    {
-        QTextStream out(&file);
-        out << ui->textEdit->toPlainText().toUtf8();
-        file.close();
-        setWindowTitle(QFileInfo(filePath).fileName() + "- Блокнот");
-        is_modified = false;
-    }
-    else
-    {
-        QMessageBox::critical(this, "Ошибка", "Невозможно сохранить файл", QMessageBox::Ok);
+        QFile file(fileName); // читаем название
+
+        if (!file.open(QIODevice::WriteOnly)) // если изначально ошибка в файле
+        {
+            QMessageBox::critical(this, tr("Ошибка"), tr("Не могу сохранить файл") + file.errorString());
+            return;
+        }
+        else  // нет ошибок
+        {
+            QString fileTitle = changedTitle(oldPath.remove("*")); // изменяем название окна (убираем звездочку при каждом сохранении
+            QTextStream in(&file); // сохранение текста
+            in.setCodec("UTF-8"); // ставим кодек utf-8
+            in << ui->textEdit->toPlainText();
+            file.close(); // закрыли файл
+            setWindowTitle(fileTitle); // изменили название окна
+        }
     }
 
+    else // если файла еще нет в системе(не сохранялся)
+    {
+        on_Menu_Save_As_triggered(); // то Сохранить как
+    }
 }
 
 
+// кнопки
 
 void MainWindow::on_Menu_Exit_triggered() // МЕНЮ ВЫХОД ????????????????????????????????????????????????????????????
 {
@@ -232,23 +350,63 @@ void MainWindow::on_Menu_About_triggered() // О ПРОГРАММЕ
     QMessageBox::about(this, "О Программе", about_text);
 }
 
-void MainWindow::on_textEdit_textChanged()
+// функции
+
+void MainWindow::on_textEdit_textChanged() // звездочка при изменении документа
 {
-    if (!is_modified)
-    {
-        is_modified = true;
-        SetText(filePath.split("/").last());
-    }
+    QString fileTitle = changedTitle(fileName);
+
+//    if(!fileExits(fileName)) // если документа не существует в системе
+//    {
+//        if (ui->textEdit->toPlainText().length() == 0) // если документ пустой
+//            this->setWindowTitle(fileTitle.remove("*")); // ставим заголовок и убираем звездочку
+//        else //если в документе что то написано
+//            this->setWindowTitle("*" + fileTitle); // добавляем к названию звездочку
+//    }
+    //else // если документ существует в системе (сохранен)
+    //{
+    if(ui->textEdit->toPlainText().length() == 0) // считывае документ кодировкой и проверяем на text(пустую строку)
+        this->setWindowTitle(fileTitle.remove("*")); // если равен text - документ пуст - убираем звезду
+    else // если документ не пустой
+        this->setWindowTitle("*" + fileTitle); // добавляем звезлу
+    //}
 }
 
-void MainWindow::SetText(const QString &name)
+void MainWindow::closeEvent(QCloseEvent *event) //ОБРАБОТЧИК ЗАКРЫТИЯ ФОРМЫ
 {
-    QString text;
-    if (is_modified)
+    QString oldPath = windowTitle(); // old path
+
+    if (!count(oldPath.begin(), oldPath.end(), "*")) // если в названии нет звездочки, то файл не изменен(пустой), значит можно просто закрыть
+        event->accept();
+    else // если звезды нет, то
     {
-        text = "*";
+        QMessageBox quastion;
+        quastion.setWindowTitle("Блокнот");
+        quastion.setText("Вы хотите сохранить изменения в файле? \n" + fileName + "?");
+        quastion.setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+        quastion.setDefaultButton(QMessageBox::Save);
+        int res = quastion.exec();
+        switch (res)
+        {
+            case QMessageBox::Save:
+            {
+                if (fileExits(fileName))
+                    on_Menu_Save_triggered();
+                else
+                    on_Menu_Save_As_triggered();
+                break;
+            }
+            case QMessageBox::Discard:
+            {
+                event->accept();
+                break;
+            }
+            case QMessageBox::Cancel:
+            {
+                event->ignore();
+                break;
+            }
+        }
     }
-    text = text + name;
-    setWindowTitle(text + "- Блокнот");
 }
 

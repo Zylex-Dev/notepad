@@ -2,11 +2,16 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QtWidgets>
 #include <QFileDialog> // Библиотека с диалоговыми окнами для работы с файлами
 #include <QMessageBox>
 #include <QCloseEvent> // библиотека с функциями обработчика закрытия окна
 #include <QTextStream>
 #include <QFile>
+#include <QTextEdit>
+#include <QString>
+#include <iostream>
+#include <string>
 
 
 namespace Ui {
@@ -20,6 +25,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
 
 private slots:
     void on_Menu_Open_triggered();
@@ -46,18 +52,29 @@ private slots:
 
     void on_Menu_About_triggered();
 
+
+
     void on_textEdit_textChanged();
-
-
-    void SetText(const QString &name);
-
 
 private:
     Ui::MainWindow *ui;
 
-    bool is_modified = false;
-    bool is_saved = false;
+    QString text = ""; //считывание текста документа для того чтобы проверить пустой ли документ
+    QString fileName = "Безымянный - Блокнот"; // считывание названия документа
 
+    bool fileExits(QString path) // функция существования документа в системе
+    {
+        QFileInfo check_file(path);
+        return check_file.exists() && check_file.isFile();
+    }
+
+    QString changedTitle(QString path) // обработка пути до названия
+    {
+        int lastIndex = path.lastIndexOf("/"); // - последний индекс
+        QString fileTitle = path; // обрезали до названия документа
+        fileTitle = fileTitle.remove(0, lastIndex+1); // изменили название
+        return fileTitle;
+    }
 
 };
 
