@@ -53,8 +53,8 @@ private slots:
     void on_Menu_About_triggered();
 
 
-
     void on_textEdit_textChanged();
+
 
 private:
     Ui::MainWindow *ui;

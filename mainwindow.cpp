@@ -3,12 +3,11 @@
 
 using namespace std;
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(QWidget *parent) : // конструктор
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
 
     this->setCentralWidget(ui->textEdit); // привязка поля текста к размерам окна
     setWindowTitle(fileName);
@@ -16,7 +15,7 @@ MainWindow::MainWindow(QWidget *parent) :
 }
 
 
-MainWindow::~MainWindow()
+MainWindow::~MainWindow() // деструктор
 {
     delete ui;
 }
@@ -40,7 +39,12 @@ void MainWindow::on_Menu_Open_triggered() // меню ОТКРЫТЬ
             case QMessageBox::Save:
             {
                 if (fileExits(fileName))
+                {
+
                     on_Menu_Save_triggered();
+                    on_Menu_Open_triggered();
+                    break;
+                }
                 else
                 {/*
                     QString fileSaveName(fileName);
@@ -85,6 +89,7 @@ void MainWindow::on_Menu_Open_triggered() // меню ОТКРЫТЬ
                         break;
                     }*/
                     on_Menu_Save_As_triggered();
+                    on_Menu_Open_triggered();
                     break;
 
                 }
